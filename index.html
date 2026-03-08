@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Bed Remote">
+<title>Bed Remote</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #13131a;
+    --surface2: #1c1c26;
+    --border: #2a2a3a;
+    --accent: #c8f060;
+    --accent2: #60c8f0;
+    --accent3: #f060c8;
+    --text: #e8e8f0;
+    --muted: #5a5a7a;
+    --danger: #f06060;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* Subtle background grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(200,240,96,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(200,240,96,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app {
+    position: relative;
+    z-index: 1;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 0 16px;
+    padding-top: env(safe-area-inset-top, 20px);
+    max-width: 420px;
+    margin: 0 auto;
+    width: 100%;
+  }
+
+  /* Header */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 0 24px;
+  }
+
+  .header-title {
+    font-size: 11px;
+    font-family: 'DM Mono', monospace;
+    color: var(--muted);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--muted);
+    transition: all 0.3s;
+    position: relative;
+  }
+  .status-dot.connected {
+    background: var(--accent);
+    box-shadow: 0 0 12px var(--accent);
+  }
+  .status-dot.connected::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    background: var(--accent);
+    opacity: 0.2;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); opacity: 0.2; }
+    50% { transform: scale(1.8); opacity: 0; }
+  }
+
+  .status-label {
+    font-size: 10px;
+    font-family: 'DM Mono', monospace;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .status-label.connected { color: var(--accent); }
+
+  /* Now Playing Display */
+  .now-playing {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .now-playing::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent2), transparent);
+    opacity: 0.4;
+  }
+  .np-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    color: var(--muted);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .np-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+  .np-sub {
+    font-size: 12px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+  }
+  .np-streaming {
+    display: flex;
+    gap: 6px;
+    margin-top: 12px;
+  }
+  .service-badge {
+    font-size: 9px;
+    font-family: 'DM Mono', monospace;
+    letter-spacing: 0.1em;
+    padding: 4px 8px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    color: var(--muted);
+  }
+  .service-badge.netflix { border-color: #e50914; color: #e50914; }
+  .service-badge.disney { border-color: #006e99; color: #006e99; }
+
+  /* Section label */
+  .section-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    color: var(--muted);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    padding-left: 2px;
+  }
+
+  /* Big play/pause button */
+  .play-section {
+    margin-bottom: 20px;
+  }
+
+  .play-btn {
+    width: 100%;
+    height: 100px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    cursor: pointer;
+    transition: all 0.15s;
+    position: relative;
+    overflow: hidden;
+    -webkit-user-select: none;
+  }
+  .play-btn::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--accent);
+    opacity: 0;
+    transition: opacity 0.15s;
+    border-radius: 20px;
+  }
+  .play-btn:active::after { opacity: 0.08; }
+  .play-btn:active { transform: scale(0.98); border-color: var(--accent); }
+
+  .play-icon {
+    font-size: 42px;
+    line-height: 1;
+    transition: transform 0.2s;
+  }
+  .play-btn-label {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  /* Skip buttons */
+  .skip-section {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .skip-btn {
+    height: 72px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+    -webkit-user-select: none;
+    position: relative;
+    overflow: hidden;
+  }
+  .skip-btn::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--accent2);
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+  .skip-btn:active::after { opacity: 0.08; }
+  .skip-btn:active { transform: scale(0.97); border-color: var(--accent2); }
+  .skip-icon { font-size: 24px; }
+  .skip-label {
+    font-size: 10px;
+    font-family: 'DM Mono', monospace;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+  }
+
+  /* Volume section */
+  .volume-section {
+    margin-bottom: 20px;
+  }
+
+  .volume-controls {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .vol-btn {
+    width: 60px;
+    height: 60px;
+    border-radius: 12px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    cursor: pointer;
+    transition: all 0.15s;
+    flex-shrink: 0;
+    -webkit-user-select: none;
+  }
+  .vol-btn:active { transform: scale(0.93); background: var(--surface); }
+  .vol-btn.down:active { border-color: var(--accent3); }
+  .vol-btn.up:active { border-color: var(--accent); }
+
+  .vol-bar-wrap {
+    flex: 1;
+    height: 60px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .vol-track {
+    height: 6px;
+    background: var(--surface2);
+    border-radius: 3px;
+    overflow: hidden;
+    position: relative;
+  }
+  .vol-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent2), var(--accent));
+    border-radius: 3px;
+    width: 70%;
+    transition: width 0.2s;
+  }
+  .vol-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .mute-btn {
+    width: 60px;
+    height: 60px;
+    border-radius: 12px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    gap: 3px;
+    cursor: pointer;
+    transition: all 0.15s;
+    flex-shrink: 0;
+    -webkit-user-select: none;
+  }
+  .mute-btn:active { transform: scale(0.93); border-color: var(--accent3); }
+  .mute-btn-label {
+    font-size: 8px;
+    font-family: 'DM Mono', monospace;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+  }
+
+  /* Bottom actions */
+  .bottom-section {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 32px;
+  }
+
+  .action-btn {
+    height: 80px;
+    border-radius: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    -webkit-user-select: none;
+  }
+  .action-btn.lock {
+    border-color: rgba(240,96,96,0.3);
+    background: rgba(240,96,96,0.05);
+  }
+  .action-btn.lock:active {
+    background: rgba(240,96,96,0.15);
+    transform: scale(0.97);
+  }
+  .action-btn.fullscreen:active {
+    background: rgba(96,200,240,0.1);
+    transform: scale(0.97);
+    border-color: var(--accent2);
+  }
+  .action-icon { font-size: 28px; }
+  .action-label {
+    font-size: 11px;
+    font-family: 'DM Mono', monospace;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+  }
+  .action-btn.lock .action-label { color: var(--danger); }
+
+  /* Toast notification */
+  .toast {
+    position: fixed;
+    bottom: calc(env(safe-area-inset-bottom) + 24px);
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 40px;
+    padding: 10px 20px;
+    font-size: 12px;
+    font-family: 'DM Mono', monospace;
+    color: var(--text);
+    white-space: nowrap;
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    z-index: 100;
+    pointer-events: none;
+  }
+  .toast.show {
+    transform: translateX(-50%) translateY(0);
+  }
+  .toast.success { border-color: var(--accent); color: var(--accent); }
+  .toast.error { border-color: var(--danger); color: var(--danger); }
+
+  /* Ripple on press */
+  @keyframes ripple {
+    from { transform: scale(0); opacity: 0.3; }
+    to { transform: scale(3); opacity: 0; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <span class="header-title">Bed Remote</span>
+    <span class="status-label" id="statusLabel">
+      <span class="status-dot" id="statusDot"></span>
+      <span id="statusText">connecting...</span>
+    </span>
+  </div>
+
+  <div class="now-playing">
+    <div class="np-label">Currently watching</div>
+    <div class="np-title" id="npTitle">Laptop Remote</div>
+    <div class="np-sub" id="npSub">Ready to control your laptop</div>
+    <div class="np-streaming">
+      <div class="service-badge netflix">NETFLIX</div>
+      <div class="service-badge disney">DISNEY+</div>
+    </div>
+  </div>
+
+  <div class="play-section">
+    <div class="section-label">Playback</div>
+    <div class="play-btn" id="playBtn" onclick="sendCmd('playpause')">
+      <span class="play-icon" id="playIcon">⏸</span>
+      <span class="play-btn-label" id="playLabel">PAUSE / PLAY</span>
+    </div>
+  </div>
+
+  <div class="skip-section">
+    <div class="skip-btn" onclick="sendCmd('skip_back')">
+      <span class="skip-icon">⏪</span>
+      <span class="skip-label">−10 sec</span>
+    </div>
+    <div class="skip-btn" onclick="sendCmd('skip_forward')">
+      <span class="skip-icon">⏩</span>
+      <span class="skip-label">+10 sec</span>
+    </div>
+  </div>
+
+  <div class="volume-section">
+    <div class="section-label">Volume</div>
+    <div class="volume-controls">
+      <div class="vol-btn down" onclick="sendCmd('vol_down')">🔉</div>
+      <div class="vol-bar-wrap">
+        <div class="vol-track">
+          <div class="vol-fill" id="volFill"></div>
+        </div>
+        <div class="vol-label">
+          <span>vol</span>
+          <span id="volDisplay">—</span>
+        </div>
+      </div>
+      <div class="mute-btn" onclick="sendCmd('mute')">
+        🔇
+        <span class="mute-btn-label">MUTE</span>
+      </div>
+      <div class="vol-btn up" onclick="sendCmd('vol_up')">🔊</div>
+    </div>
+  </div>
+
+  <div class="section-label">System</div>
+  <div class="bottom-section">
+    <div class="action-btn lock" onclick="sendCmd('lock')">
+      <span class="action-icon">🔒</span>
+      <span class="action-label">lock screen</span>
+    </div>
+    <div class="action-btn fullscreen" onclick="sendCmd('fullscreen')">
+      <span class="action-icon">⛶</span>
+      <span class="action-label">fullscreen</span>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Setup Screen (shown on first launch) -->
+<div id="setupScreen" style="display:none; position:fixed; inset:0; background:var(--bg); z-index:200; flex-direction:column; align-items:center; justify-content:center; padding:32px;">
+  <div style="width:100%; max-width:360px;">
+    <div style="font-family:'DM Mono',monospace; font-size:9px; color:var(--muted); letter-spacing:0.2em; text-transform:uppercase; margin-bottom:12px;">First time setup</div>
+    <div style="font-size:26px; font-weight:800; color:var(--text); margin-bottom:8px;">Connect to<br>your laptop</div>
+    <div style="font-size:13px; color:var(--muted); font-family:'DM Mono',monospace; margin-bottom:32px; line-height:1.6;">
+      Run the server on your laptop.<br>
+      It will print an IP address like<br>
+      <span style="color:var(--accent);">192.168.x.x</span> — enter it below.
+    </div>
+
+    <div style="font-family:'DM Mono',monospace; font-size:9px; color:var(--muted); letter-spacing:0.15em; text-transform:uppercase; margin-bottom:8px;">Laptop IP address</div>
+    <input
+      id="ipInput"
+      type="text"
+      inputmode="decimal"
+      placeholder="e.g. 192.168.1.42"
+      style="
+        width:100%; padding:16px; border-radius:12px;
+        background:var(--surface2); border:1px solid var(--border);
+        color:var(--text); font-family:'DM Mono',monospace; font-size:16px;
+        outline:none; margin-bottom:8px;
+        -webkit-appearance:none;
+      "
+    />
+    <div style="font-family:'DM Mono',monospace; font-size:9px; color:var(--muted); margin-bottom:24px;">Port: 8765 (default)</div>
+
+    <div
+      id="connectBtn"
+      onclick="saveAndConnect()"
+      style="
+        width:100%; padding:18px; border-radius:14px;
+        background:var(--accent); color:#0a0a0f;
+        font-size:15px; font-weight:700; text-align:center;
+        cursor:pointer; letter-spacing:0.05em;
+      "
+    >CONNECT</div>
+
+    <div id="setupError" style="font-family:'DM Mono',monospace; font-size:11px; color:var(--danger); text-align:center; margin-top:16px; min-height:20px;"></div>
+  </div>
+</div>
+
+<script>
+  const PORT = 8765;
+  let BASE_URL = '';
+  let isPlaying = true;
+  let volume = 70;
+  let statusInterval = null;
+
+  // ── On load: check if IP is already saved ──
+  window.addEventListener('load', () => {
+    // If opened via the server (not file://), auto-use that host
+    const host = window.location.hostname;
+    if (host && host !== 'localhost' && host !== '127.0.0.1') {
+      BASE_URL = `http://${host}:${PORT}`;
+      startApp();
+    } else {
+      const saved = localStorage.getItem('bedremote_ip');
+      if (saved) {
+        BASE_URL = `http://${saved}:${PORT}`;
+        startApp();
+      } else {
+        showSetup();
+      }
+    }
+  });
+
+  function showSetup() {
+    const s = document.getElementById('setupScreen');
+    s.style.display = 'flex';
+  }
+
+  function hideSetup() {
+    document.getElementById('setupScreen').style.display = 'none';
+  }
+
+  async function saveAndConnect() {
+    const input = document.getElementById('ipInput').value.trim();
+    const errEl = document.getElementById('setupError');
+    const btn = document.getElementById('connectBtn');
+
+    if (!input) { errEl.textContent = 'please enter an IP address'; return; }
+
+    errEl.textContent = '';
+    btn.textContent = 'CONNECTING...';
+    btn.style.opacity = '0.7';
+
+    BASE_URL = `http://${input}:${PORT}`;
+
+    try {
+      const r = await fetch(`${BASE_URL}/status`, { signal: AbortSignal.timeout(3000) });
+      if (r.ok) {
+        localStorage.setItem('bedremote_ip', input);
+        hideSetup();
+        startApp();
+      } else {
+        throw new Error('bad response');
+      }
+    } catch {
+      errEl.textContent = "can't reach that IP — is the server running?";
+      btn.textContent = 'CONNECT';
+      btn.style.opacity = '1';
+    }
+  }
+
+  // Allow pressing Enter on keyboard
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('ipInput').addEventListener('keydown', e => {
+      if (e.key === 'Enter') saveAndConnect();
+    });
+  });
+
+  function startApp() {
+    checkStatus();
+    if (statusInterval) clearInterval(statusInterval);
+    statusInterval = setInterval(checkStatus, 5000);
+  }
+
+  // ── Status & UI ──
+  async function checkStatus() {
+    try {
+      const r = await fetch(`${BASE_URL}/status`, { signal: AbortSignal.timeout(2000) });
+      if (r.ok) {
+        const data = await r.json();
+        setConnected(true);
+        volume = data.volume ?? volume;
+        updateVolumeDisplay();
+      }
+    } catch {
+      setConnected(false);
+    }
+  }
+
+  function setConnected(ok) {
+    document.getElementById('statusDot').className = 'status-dot' + (ok ? ' connected' : '');
+    document.getElementById('statusLabel').className = 'status-label' + (ok ? ' connected' : '');
+    document.getElementById('statusText').textContent = ok ? 'connected' : 'offline';
+  }
+
+  function updateVolumeDisplay() {
+    document.getElementById('volFill').style.width = volume + '%';
+    document.getElementById('volDisplay').textContent = volume + '%';
+  }
+
+  function showToast(msg, type = '') {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show' + (type ? ' ' + type : '');
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => { t.className = 'toast'; }, 1800);
+  }
+
+  // ── Commands ──
+  async function sendCmd(cmd) {
+    if (navigator.vibrate) navigator.vibrate(30);
+
+    if (cmd === 'playpause') {
+      isPlaying = !isPlaying;
+      document.getElementById('playIcon').textContent = isPlaying ? '⏸' : '▶️';
+    }
+    if (cmd === 'vol_up') { volume = Math.min(100, volume + 10); updateVolumeDisplay(); }
+    if (cmd === 'vol_down') { volume = Math.max(0, volume - 10); updateVolumeDisplay(); }
+
+    try {
+      const r = await fetch(`${BASE_URL}/cmd/${cmd}`, {
+        method: 'POST',
+        signal: AbortSignal.timeout(3000)
+      });
+      if (r.ok) {
+        const data = await r.json();
+        const msgs = {
+          playpause: isPlaying ? '▶ playing' : '⏸ paused',
+          vol_up: '🔊 volume up',
+          vol_down: '🔉 volume down',
+          mute: '🔇 muted',
+          skip_forward: '⏩ +10 sec',
+          skip_back: '⏪ −10 sec',
+          lock: '🔒 screen locked',
+          fullscreen: '⛶ fullscreen'
+        };
+        showToast(msgs[cmd] || cmd, 'success');
+        if (data.volume !== undefined) { volume = data.volume; updateVolumeDisplay(); }
+        setConnected(true);
+      } else {
+        showToast('error — try again', 'error');
+      }
+    } catch {
+      showToast('cannot reach laptop', 'error');
+      setConnected(false);
+    }
+  }
+
+  // ── Long-press header to reset IP ──
+  let holdTimer;
+  document.querySelector('.header-title').addEventListener('pointerdown', () => {
+    holdTimer = setTimeout(() => {
+      if (confirm('Change laptop IP address?')) {
+        localStorage.removeItem('bedremote_ip');
+        document.getElementById('ipInput').value = '';
+        document.getElementById('setupError').textContent = '';
+        showSetup();
+      }
+    }, 1500);
+  });
+  document.querySelector('.header-title').addEventListener('pointerup', () => clearTimeout(holdTimer));
+</script>
+</body>
+</html>
